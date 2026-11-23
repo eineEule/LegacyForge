@@ -166,3 +166,23 @@ def community_record(s: dict) -> dict:
         "system": {k: s.get("system", {}).get(k) for k in ("windows_build", "gpu", "gpu_driver")},
         "peak_private_mb": s.get("memory", {}).get("peak", {}).get("private_mb"),
     })
+
+
+def record_confirmation(game: str, session_id: str, passed: bool, by: str) -> dict:
+    """Record a user's gameplay verdict on a saved session and re-derive its outcome.
+    Crash evidence always wins over a 'passed' claim."""
+    from . import diagnostics as d
+
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", session_id):
+        raise ValueError("invalid session id")
+    p = _dir(game) / f"{session_id}.json"
+    if not p.exists():
+        raise FileNotFoundError(f"no session {session_id} for {game}")
+    s = json.loads(p.read_text())
+    ex = d.ExitInfo(**s["exit"])
+    outcome, reasons = d.session_outcome(d.Observation(ex, s["runtime_s"], s.get("events", []), False, passed,
+                                                       min_runtime_s=0))
+    s["outcome"], s["reasons"] = outcome, reasons
+    s["confirmation"] = {"passed": passed, "by": by, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    p.write_text(json.dumps(s, indent=2, default=str))
+    return {"id": session_id, "outcome": outcome, "reasons": reasons}

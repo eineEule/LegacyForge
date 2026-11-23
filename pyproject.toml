@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "legacyforge"
-version = "0.2.0"
+version = "0.3.0"
 description = "Evidence-driven compatibility engine for legacy 32-bit Windows PC games."
 readme = "README.md"
 license = { text = "MIT" }
@@ -17,11 +17,13 @@ classifiers = [
 
 [project.optional-dependencies]
 registry = ["cryptography>=42"]
-dev = ["pytest>=8", "cryptography>=42"]
+mcp = ["mcp>=1.2"]
+dev = ["pytest>=8", "cryptography>=42", "mcp>=1.2"]
 
 [project.scripts]
 legacyforge = "legacyforge.cli:main"
 oldgames = "legacyforge.cli:main"
+legacyforge-mcp = "legacyforge.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

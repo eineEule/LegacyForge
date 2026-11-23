@@ -70,6 +70,13 @@ legacyforge sessions compare aoe2-1999
 legacyforge revert aoe2-1999 --game-dir "C:\Games\AoE2"
 ```
 
+## Use it with Claude
+
+LegacyForge ships an MCP server (`legacyforge-mcp`) for Claude Desktop and Claude Code. Ask Claude
+why a game crashes and it can analyze the executable, read your session history, show a plan and,
+with your approval, apply it. Write access is off unless you enable it, and approval steps are
+enforced in code. Setup: [docs/CLAUDE.md](docs/CLAUDE.md).
+
 ## Commands
 
 | Command | What it does |
@@ -119,6 +126,7 @@ verified yet; see [docs/COMPATIBILITY_MATRIX.md](docs/COMPATIBILITY_MATRIX.md).
 - [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md)
 - [Security considerations](docs/SECURITY.md)
 - [Completed vs planned](docs/STATUS.md)
+- [Using it with Claude (MCP)](docs/CLAUDE.md)
 
 ## Testing
 
@@ -146,6 +154,7 @@ pytest -m integration           # on Windows, with LEGACYFORGE_GAME_EXE=<path to
 4. Confirm the Rise of Nations graphics API from a real `analyze`, then add backend options.
 5. Engine-specific timing workarounds, and key revocation for registry bundles.
 6. GUI on top of `services.py`.
+7. Package the MCP server as a one-click Claude Desktop extension.
 
 ## License
 

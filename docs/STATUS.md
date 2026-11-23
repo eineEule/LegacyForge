@@ -52,6 +52,8 @@ Legend:
 | Remote registry hosting / submission | ⏳ |
 | Key revocation | ⏳ |
 | GUI | ⏳ |
+| MCP server for Claude: read-only by default, flag-gated writes, plan-token binding, audit log, stdio protocol test | ✅ · Claude Desktop on Windows 🟡 |
+| One-click Claude Desktop extension packaging | ⏳ |
 
 ## Needs a Windows machine and the real games
 - Run `pytest -m integration` with `LEGACYFORGE_GAME_EXE` set (see `tests/integration`).
