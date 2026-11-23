@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, detect, engine, monitor, pe, recipe, registry, report, services, sessions
+from . import __version__, detect, engine, monitor, pe, registry, report, services, sessions
 from .archive import ArchiveError
 from .fixes import FixError
 from .fsutil import UnsafePathError

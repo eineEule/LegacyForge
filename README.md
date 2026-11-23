@@ -1,81 +1,109 @@
-# oldgames
+# LegacyForge
 
-Patch and wrap old 32-bit PC games so they run well on modern Windows, using
-short, reviewable recipes instead of forum threads.
+An evidence-driven compatibility engine for legacy 32-bit Windows PC games (roughly 1995–2012) on
+Windows 10 and 11. Formerly `oldgames`.
 
-```
-oldgames scan                    # find installed games that have recipes
-oldgames plan civ5               # show what would change
-oldgames apply civ5 --with dxvk  # apply, including an optional fix
-oldgames revert civ5             # put every file back exactly as it was
-```
-
-## Why
-
-Old games break in predictable ways: a 2 GB memory limit, Direct3D drivers that
-no longer behave, and config defaults from 2005. The fixes are well known but
-scattered across wikis and forums. `oldgames` turns each game's fixes into a
-recipe that a script runs and that anyone can read.
-
-## A recipe
-
-```yaml
-game: rise-of-nations-ee
-name: "Rise of Nations: Extended Edition"
-detect:
-  steam_appid: 287450
-  exe: riseofnations.exe
-fixes:
-  - laa: riseofnations.exe
-  - dxvk: {api: d3d9}
-    optional: true
-notes:
-  - "Subscribe to the Community Balance/Bugfix Patch on the Workshop."
-```
-
-## Fix types
-
-| Fix       | What it does                                                        |
-|-----------|---------------------------------------------------------------------|
-| `laa`     | Sets the Large Address Aware flag, so 32-bit games get 4 GB, not 2. |
-| `dxvk`    | Installs DXVK (Direct3D 8/9/10/11 to Vulkan) next to the exe.       |
-| `reshade` | Installs ReShade post-processing. Experimental.                     |
-| `ini`     | Edits config files in place, keeping comments and encoding.         |
-
-Run `oldgames inspect game.exe` to see an exe's architecture, whether it is
-already 4 GB aware, and which graphics API it imports.
-
-## Safety
-
-- **Every change is backed up first.** Snapshots live in
-  `<game>\.oldgames\<recipe>\`. `revert` restores originals and removes added
-  files. If any fix fails, the whole apply is rolled back.
-- **No game files and no bundled tools.** Third-party tools are downloaded from
-  their official releases at apply time and checked against a SHA-256 pin in
-  `src/oldgames/data/tools.yaml`. Unpinned tools are refused unless you pass
-  `--allow-unpinned`.
-- **Conflicts are caught before anything runs.** For example, DXVK and ReShade
-  can't both own `d3d9.dll`.
-- Steam "Verify integrity of game files" and game updates undo patches to the
-  exe. Run `revert`, then `apply` again.
-
-## Install (development)
+It analyzes an executable it has never seen, explains what it found and how sure it is, and
+recommends fixes conservatively. It applies only what you choose, inside a transaction it can undo,
+then launches the game and records evidence of whether things got better.
 
 ```
-git clone <this repo> && cd oldgames
-python -m pip install -e .[dev]
-pytest
+Discover → Analyze → Recommend → Back up → Apply → Launch → Monitor → Verify → Restore
 ```
 
-Requires Python 3.10+ on Windows. Tests run anywhere.
+LegacyForge can't guarantee any game becomes stable. It tells you what it knows, what it's guessing
+and what it changed.
 
-## Roadmap
+## Quick start
 
-- v0.2: GOG and Epic detection, widescreen fix packs, ReShade shader presets
-- v0.3: built-in virtual LAN for multiplayer (join with a code)
-- Signed recipe registry, so community recipes can be trusted before they run
-- Small GUI
+```
+pip install -e .[dev]          # Python 3.10+, Windows for the full feature set
+legacyforge discover           # Steam, GOG and --dir folders
+legacyforge analyze "C:\Games\AoE2\age2_x1\age2_x1.exe" --json report.json
+legacyforge plan aoe2-1999 --game-dir "C:\Games\AoE2"
+legacyforge apply aoe2-1999 --game-dir "C:\Games\AoE2"
+legacyforge launch aoe2-1999 --game-dir "C:\Games\AoE2" --scenario skirmish
+legacyforge sessions compare aoe2-1999
+legacyforge revert aoe2-1999 --game-dir "C:\Games\AoE2"
+```
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `discover [--dir D]` | Installed games (Steam, GOG, folders) and which have recipes |
+| `analyze EXE [--json F] [-v]` | Read-only report: PE facts, graphics evidence, protection, dependencies, system, recommendations. Given a folder, lists candidate exes |
+| `list` | Recipes (bundled + installed from signed bundles) |
+| `plan` / `apply RECIPE [--with FIX] [--approve TOKEN] [--param fix.key=value]` | Show and apply a transactional plan |
+| `revert RECIPE [--keep-current \| --force]` | Undo; stops if files changed since the patch |
+| `recover RECIPE` | Roll back an interrupted apply |
+| `status RECIPE`, `history GAME_DIR [--log]` | What's applied, what changed since |
+| `profile GAME [--affinity 0,1] [--priority P] [--arg A] [--env K=V]` | Per-game launch profile (nothing system-wide) |
+| `launch RECIPE\|EXE [--scenario S] [--minutes N] [-v]` | Run, monitor memory and exit, check the Event Log, record a session |
+| `sessions list\|compare\|verify\|purge\|export` | Evidence: baseline vs candidate, "verified stable" rules, privacy controls |
+| `settings [--set retention_days=30]` | Diagnostic collection and retention |
+| `registry keygen\|trust\|sign\|verify\|install` | Signed recipe bundles |
+| `inspect EXE`, `scan` | v0.1 commands, kept |
+
+## Fixes
+
+| Fix | Modifies exe | Notes |
+|---|---|---|
+| `laa` | yes | Needs a recipe hash match or `--approve laa`; refused on protected exes |
+| `dxvk` | no | Pinned 2.5.3; arch-checked DLLs; optional `dxvk.conf` |
+| `cnc-ddraw` | no | Pinned 7.1.0.0; DirectDraw (2D) games only; allowlisted `ddraw.ini` settings |
+| `dgvoodoo2` | no | You supply the archive (`--param dgvoodoo2.archive=...`); never downloaded or bundled |
+| `reshade` | no | Experimental; hash must be pinned before use |
+| `compat` | no | Per-user Windows compatibility layers for the exact exe (mode, fullscreen optimizations, DPI, colour) |
+| `ini` | no | Edits configs preserving comments and encoding |
+
+Approvals the plan may ask for: `laa`, `laa-signed`, `replace-foreign` (overwrite a DLL LegacyForge
+didn't install), `dgvoodoo2-unpinned`.
+
+## Recipes
+
+YAML, schema v2 (v1 still loads): editions with exe SHA-256s, known issues (each must cite
+evidence), fixes with status, order, editions and optional flags, incompatible pairs, dependencies,
+test plans and recorded evidence. Recipes can't run code. See `src/legacyforge/recipes/civ5.yaml`.
+
+Bundled: `civ4`, `civ5`, `aoe2-1999`, `rise-of-nations-ee`, `rise-of-nations-2003`. None is
+verified yet; see [docs/COMPATIBILITY_MATRIX.md](docs/COMPATIBILITY_MATRIX.md).
+
+## Docs
+
+- [Assessment of the v0.1 codebase](docs/ASSESSMENT.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md)
+- [Security considerations](docs/SECURITY.md)
+- [Completed vs planned](docs/STATUS.md)
+
+## Testing
+
+```
+pytest                          # unit suite: synthetic fixtures, no games needed
+pytest -m integration           # on Windows, with LEGACYFORGE_GAME_EXE=<path to a game exe>
+```
+
+## Migrating from oldgames 0.1
+
+- The package is `legacyforge`; the `oldgames` command still works.
+- Snapshots in `<game>\.oldgames\` are still recognised by `status` and `revert`. New ones go to
+  `<game>\.legacyforge\`.
+- **Behaviour change:** `laa` now requires `--approve laa` unless the recipe lists the exe's
+  SHA-256 under `editions`. Some games crash with LAA, so it is no longer applied on a name match.
+- `revert` now refuses to overwrite files changed since the patch; use `--keep-current` or
+  `--force`.
+- `pefile` is no longer a dependency.
+
+## Prioritized next steps
+
+1. Run the integration test and `analyze` on real installs of the four games; record edition hashes.
+2. Validate the Windows-only paths: Event Log, memory counters, Steam hand-off, compat layers, GOG.
+3. Record baseline and fix sessions for Civ V late game (the reported crash), then Civ IV big maps.
+4. Confirm the Rise of Nations graphics API from a real `analyze`, then add backend options.
+5. Engine-specific timing workarounds, and key revocation for registry bundles.
+6. GUI on top of `services.py`.
 
 ## License
 
-MIT. Each downloaded tool keeps its own license; see `data/tools.yaml`.
+MIT. Downloaded tools keep their own licenses (`src/legacyforge/data/tools.yaml`).

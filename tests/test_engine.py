@@ -4,11 +4,11 @@ import tarfile
 import pytest
 
 from legacyforge import engine, pe, tools
-
-LAA_OK = {"laa"}
 from legacyforge.fixes import FixError
 from legacyforge.fixes.ini import edit_ini
 from legacyforge.recipe import RecipeError, bundled, parse
+
+LAA_OK = {"laa"}
 
 
 def recipe(*fixes, exe="game.exe"):

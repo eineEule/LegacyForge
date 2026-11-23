@@ -75,7 +75,7 @@ def to_text(r: dict, *, verbose: bool = False) -> str:
         else:
             L.append(f"  GPU            : {g}")
         v = s["vulkan"]
-        L.append(f"  Vulkan         : " + (f"32-bit loader {'yes' if v.get('loader_32bit') else 'no'}, "
+        L.append("  Vulkan         : " + (f"32-bit loader {'yes' if v.get('loader_32bit') else 'no'}, "
                                          f"64-bit loader {'yes' if v.get('loader_64bit') else 'no'}"
                                          if "loader_32bit" in v else str(v.get("status", v))))
         for n in s.get("notes", []):

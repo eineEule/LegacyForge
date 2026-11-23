@@ -1,5 +1,4 @@
 import pytest
-import yaml
 
 from legacyforge import engine
 from legacyforge.fsutil import UnsafePathError

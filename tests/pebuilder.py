@@ -44,7 +44,6 @@ def build_pe(*, pe32: bool = True, characteristics: int = 0x0102, checksum: int 
              section_names=(".text",), text_bytes: bytes = b"\xc3" * 64,
              signature: bytes | None = None, subsystem: int = 2,
              dll_characteristics: int = 0x0000, overlay: bytes = b"") -> bytes:
-    sections: list[tuple[str, bytes, int]] = []  # name, data, characteristics
     rva = SECT_ALIGN
     layout = []
 
