@@ -1,0 +1,18 @@
+# Pinned third-party tools. Nothing here is redistributed by this project:
+# each tool is downloaded from its official source and checked against sha256.
+# To bump a version: download it yourself, verify it, update url/version/sha256.
+
+dxvk:
+  version: "2.5.3"
+  license: zlib
+  homepage: https://github.com/doitsujin/dxvk
+  url: https://github.com/doitsujin/dxvk/releases/download/v2.5.3/dxvk-2.5.3.tar.gz
+  sha256: d8e6ef7d1168095165e1f8a98c7d5a4485b080467bb573d2a9ef3e3d79ea1eb8
+
+reshade:
+  # The setup .exe carries a zip archive with ReShade32.dll / ReShade64.dll.
+  version: "6.3.3"
+  license: BSD-3-Clause
+  homepage: https://reshade.me
+  url: https://reshade.me/downloads/ReShade_Setup_6.3.3.exe
+  sha256: null   # TODO: pin after verifying the download
