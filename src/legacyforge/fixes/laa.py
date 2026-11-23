@@ -43,10 +43,14 @@ class LAA(Fix):
         return self._targets(ctx)
 
     def approvals_needed(self, ctx: Context) -> list[tuple[str, str]]:
+        from ..fsutil import sha256_file
+
         out = []
-        if not ctx.exe_hash_match:
-            out.append(("laa", "modifies the game executable; this exact version isn't confirmed by the "
-                               "recipe, and some games break with LAA"))
+        unconfirmed = [exe.name for exe in self._targets(ctx)
+                       if not (exe.exists() and sha256_file(exe) in ctx.known_hashes)]
+        if unconfirmed:
+            out.append(("laa", f"modifies {', '.join(unconfirmed)}; that exact version isn't confirmed by the "
+                               "recipe's hashes, and some games break with LAA"))
         for exe in self._targets(ctx):
             if exe.exists():
                 try:

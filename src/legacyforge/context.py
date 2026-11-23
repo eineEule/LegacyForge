@@ -35,6 +35,7 @@ class Context:
     allow_unpinned: bool = False
     approvals: set[str] = field(default_factory=set)
     exe_hash_match: bool = False            # detected exe matches a recipe edition hash
+    known_hashes: set[str] = field(default_factory=set)  # every edition hash the recipe lists
     registry: winapi.Registry | None = None
     variables: dict[str, str] = field(default_factory=dict)
 

@@ -140,3 +140,18 @@ def test_address_space_text():
     assert "4 GiB" in analysis.address_space(True, True, True)
     assert "32-bit Windows" in analysis.address_space(True, True, False)
     assert "64-bit process" in analysis.address_space(False, False)
+
+
+def test_vc2008_side_by_side(tmp_path):
+    from legacyforge import deps
+
+    sxs = tmp_path / "WinSxS"
+    crt = sxs / "x86_microsoft.vc90.crt_1fc8b3b9a1e18e3b_9.0.30729.9635_none_508ddc384bcb6798"
+    crt.mkdir(parents=True)
+    (crt / "msvcr90.dll").write_bytes(b"x")
+    game = tmp_path / "G"
+    game.mkdir()
+    reqs = {r.dll: r for r in deps.check(["msvcr90.dll", "msvcp80.dll"], game, True, winsxs=sxs)}
+    assert reqs["msvcr90.dll"].status == "present-on-system"
+    assert reqs["msvcp80.dll"].status == "missing"
+    assert deps.sxs_present("msvcr90.dll", False, sxs) is False  # x64 store is separate

@@ -84,3 +84,22 @@ def test_recipe_and_generic_rule_merge(tmp_path):
     cnc = [x for x in out if x.fix_type == "cnc-ddraw"]
     assert len(cnc) == 1 and cnc[0].category == recommend.KNOWN_GAME
     assert any("imports ddraw.dll" in e for e in cnc[0].evidence) and any("recipe" in e for e in cnc[0].evidence)
+
+
+def test_distinct_recipe_fixes_are_not_merged(tmp_path):
+    a = analyze(tmp_path)
+    r = parse({"game": "g", "name": "G", "detect": {"exe": "g.exe"}, "fixes": [
+        {"ini": {"file": "a.ini", "set": {"S": {"msaa": 2}}}, "note": "msaa"},
+        {"ini": {"file": "b.ini", "set": {"S": {"log": 1}}}, "note": "logging"}]})
+    notes = [x.problem for x in recommend.recommend(recommend.Context(exe=a, recipe=r)) if x.fix_type == "ini"]
+    assert len(notes) == 2
+
+
+def test_d3d11_exe_gets_d3d11_dxvk_and_merges_with_recipe(tmp_path):
+    a = analyze(tmp_path, imports={"d3d9.dll": ["Direct3DCreate9"], "d3d11.dll": ["D3D11CreateDevice"],
+                                   "dxgi.dll": ["CreateDXGIFactory"]})
+    r = parse({"game": "g", "name": "G", "detect": {"exe": "g.exe"},
+               "fixes": [{"dxvk": {"api": "d3d11"}, "optional": True, "status": "experimental"}]})
+    dx = [x for x in recommend.recommend(recommend.Context(exe=a, recipe=r)) if x.fix_type == "dxvk"]
+    assert len(dx) == 1 and "D3D11" in dx[0].fix
+    assert any("recipe" in e for e in dx[0].evidence)

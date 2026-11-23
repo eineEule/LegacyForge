@@ -185,3 +185,18 @@ def test_nested_install_owner_and_dir_cleanup(tmp_path, monkeypatch):
     assert transaction.owner_of(d / "age2_x1" / "ddraw.dll", d / "age2_x1") == "aoe"
     engine.revert(r, d)
     assert sorted(p.name for p in (d / "age2_x1").iterdir()) == ["age2_x1.exe"]  # Shaders/ removed too
+
+
+def test_laa_hash_match_must_cover_every_target(tmp_path):
+    from legacyforge.fsutil import sha256_file
+
+    d = tmp_path / "M"
+    d.mkdir()
+    (d / "game.exe").write_bytes(build_pe())
+    (d / "other.exe").write_bytes(build_pe(text_bytes=b"\x90" * 64))
+    r = parse({"schema_version": 2, "game": "t", "name": "T", "detect": {"exe": "game.exe"},
+               "editions": [{"id": "v1", "name": "1.0", "sha256": [sha256_file(d / "game.exe")]}],
+               "fixes": [{"laa": ["game.exe", "other.exe"]}]})
+    p = engine.make_plan(r, d)
+    assert p.edition.id == "v1"
+    assert [t for t, _ in p.missing_approvals] == ["laa"] and "other.exe" in p.missing_approvals[0][1]

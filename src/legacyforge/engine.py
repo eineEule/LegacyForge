@@ -65,7 +65,8 @@ def make_plan(recipe: Recipe, game_dir: Path, enable: set[str] | None = None, al
     exe_sha = sha256_file(game_dir / recipe.exe) if recipe.exe else None
     edition = recipe.match_edition(exe_sha)
     ctx = Context(game_dir=game_dir, allow_unpinned=allow_unpinned, approvals=set(approvals or ()),
-                  exe_hash_match=edition is not None, registry=registry)
+                  exe_hash_match=edition is not None, registry=registry,
+                  known_hashes={h for ed in recipe.editions for h in ed.sha256})
     enable = set(enable or ())
     unknown = enable - {e.fix.type for e in recipe.fixes if e.optional}
     if unknown:

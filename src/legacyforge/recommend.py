@@ -37,9 +37,13 @@ class Recommendation:
     verification: str
     confidence: str              # low | medium | high
     blocked_by: list[str] = field(default_factory=list)
+    merge_key: str | None = None  # same key = same fix for the same target; merged into one
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        d.pop("merge_key", None)
+        return d
+
 
 
 @dataclass
@@ -90,7 +94,7 @@ def memory_laa(c: Context) -> list[Recommendation]:
     category = KNOWN_GAME if recipe_says and c.recipe_hash_match else \
         SUGGESTED if (recipe_says or c.observed.get("memory_crash")) else EXPERIMENTAL
     return [Recommendation(
-        id="memory.laa", category=category,
+        id="memory.laa", category=category, merge_key="laa",
         problem="Game may run out of address space in long or large sessions",
         evidence=evidence, fix="Set the Large Address Aware flag (allows 4 GiB on 64-bit Windows)",
         fix_type="laa", benefit="Doubles usable address space IF the game is limited by it",
@@ -115,7 +119,7 @@ def graphics(c: Context) -> list[Recommendation]:
 
     if "directdraw" in apis and not apis & {"d3d8", "d3d9", "d3d10", "d3d11", "dxgi", "opengl"}:
         out.append(Recommendation(
-            id="graphics.cnc-ddraw", category=SUGGESTED,
+            id="graphics.cnc-ddraw", category=SUGGESTED, merge_key="cnc-ddraw",
             problem="DirectDraw games often have black screens, broken Alt+Tab, slow rendering "
                     "or bad scaling on modern Windows",
             evidence=[x.detail for g in e.graphics if g.api == "directdraw" for x in g.evidence],
@@ -133,7 +137,7 @@ def graphics(c: Context) -> list[Recommendation]:
                                     f"record a session to judge it")
     if "glide" in apis:
         out.append(Recommendation(
-            id="graphics.dgvoodoo2", category=SUGGESTED,
+            id="graphics.dgvoodoo2", category=SUGGESTED, merge_key="dgvoodoo2",
             problem="3dfx Glide has no native support on modern GPUs",
             evidence=[x.detail for g in e.graphics if g.api == "glide" for x in g.evidence],
             fix="Install dgVoodoo2's Glide wrapper (you supply the dgVoodoo2 download)",
@@ -143,17 +147,22 @@ def graphics(c: Context) -> list[Recommendation]:
             side_effects=["Adds Glide DLLs and dgVoodoo.conf to the game folder"], risk="low",
             needs_admin=False, modifies_executable=False, rollback=True,
             verification="Launch and confirm the Glide renderer option works", confidence="medium"))
+    strong = {x.api for x in e.graphics if x.strength == STRONG}
     for api, dlls in (("d3d9", ["d3d9.dll"]), ("d3d11", ["d3d11.dll", "dxgi.dll"]), ("d3d8", ["d3d8.dll"])):
         g = next((x for x in e.graphics if x.api == api and x.strength == STRONG), None)
         if not g:
             continue
+        if api == "d3d9" and "d3d11" in strong:
+            continue  # a D3D11 exe that also imports d3d9 usually uses it only for helpers
         blocked = [f"{d} from another source is already in the game folder" for d in dlls if d in proxies]
         if vulkan32 is False:
             blocked.append("no 32-bit Vulkan loader found (SysWOW64\\vulkan-1.dll)")
         out.append(Recommendation(
-            id=f"graphics.dxvk-{api}", category=EXPERIMENTAL,
+            id=f"graphics.dxvk-{api}", category=EXPERIMENTAL, merge_key=f"dxvk:{api}",
             problem="Legacy Direct3D drivers can stutter, leak memory or misrender on modern GPUs",
-            evidence=[x.detail for x in g.evidence],
+            evidence=[x.detail for x in g.evidence] + (
+                ["also imports d3d9.dll (typically helper functions in a D3D11 renderer)"]
+                if api == "d3d11" and "d3d9" in strong else []),
             fix=f"Try DXVK for {api.upper()} (Direct3D to Vulkan translation)", fix_type="dxvk",
             benefit="Can improve frame pacing and reduce driver-side memory use; results vary by game",
             prerequisites=["GPU and driver with Vulkan 1.3 support", "32-bit Vulkan loader for 32-bit games"],
@@ -253,13 +262,15 @@ def recipe_fixes(c: Context) -> list[Recommendation]:
         return []
     out = []
     covered = {"laa"}
-    for entry in c.recipe.fixes:
+    for i, entry in enumerate(c.recipe.fixes):
         t = entry.fix.type
         if t in covered:
             continue
+        params = entry.fix.params if isinstance(entry.fix.params, dict) else {}
+        key = f"dxvk:{params.get('api')}" if t == "dxvk" else t if t in ("cnc-ddraw", "dgvoodoo2") else None
         status = getattr(entry, "status", None) or KNOWN_GAME
         out.append(Recommendation(
-            id=f"recipe.{c.recipe.id}.{t}",
+            id=f"recipe.{c.recipe.id}.{i + 1}.{t}", merge_key=key,
             category={"verified": VERIFIED, "known": KNOWN_GAME, "suggested": SUGGESTED,
                       "experimental": EXPERIMENTAL}.get(status, KNOWN_GAME),
             problem=f"{c.recipe.name}: listed compatibility fix" + (f" ({entry.note})" if entry.note else ""),
@@ -281,14 +292,13 @@ def recommend(ctx: Context) -> list[Recommendation]:
     recs: list[Recommendation] = []
     for r in RULES:
         recs.extend(r(ctx))
-    # One recommendation per fix type: a recipe entry and a generic rule for the
-    # same fix merge, keeping the stronger category and both sets of evidence.
+    # A recipe entry and a generic rule for the SAME fix on the SAME target
+    # (e.g. DXVK for d3d11) merge, keeping the stronger category and both sets
+    # of evidence. Everything else stays separate.
     merged: dict[str, Recommendation] = {}
     out: list[Recommendation] = []
     for r in recs:
-        key = r.fix_type if r.fix_type and r.fix_type not in (None, "compat") else r.id
-        if r.fix_type == "compat":
-            key = "compat"
+        key = r.merge_key or r.id
         if key in merged:
             m = merged[key]
             keep, other = (m, r) if ORDER.index(m.category) <= ORDER.index(r.category) else (r, m)

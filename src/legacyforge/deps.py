@@ -64,7 +64,32 @@ def classify(dll: str) -> tuple[str, str, str] | None:
     return None
 
 
-def check(imports: list[str], game_dir: Path, is_32bit: bool) -> list[Requirement]:
+SXS = re.compile(r"(msvc[rp]|mfc|atl)(80|90)\.dll", re.I)
+
+
+def sxs_present(dll: str, is_32bit: bool, winsxs: Path | None = None) -> bool | None:
+    """VC++ 2005/2008 runtimes live in WinSxS, not System32/SysWOW64.
+    True/False when the store can be read, None when it can't."""
+    m = SXS.fullmatch(dll)
+    if not m:
+        return None
+    kind = {"msvcr": "crt", "msvcp": "crt", "mfc": "mfc", "atl": "atl"}[m.group(1).lower()]
+    ver = m.group(2)
+    if winsxs is None:
+        import os
+
+        if not winapi.IS_WINDOWS:
+            return None
+        winsxs = Path(os.environ.get("SystemRoot", r"C:\Windows"), "WinSxS")
+    try:
+        prefix = f"{'x86' if is_32bit else 'amd64'}_microsoft.vc{ver}.{kind}_"
+        dirs = [d for d in winsxs.iterdir() if d.name.lower().startswith(prefix)]
+    except OSError:
+        return None
+    return any((d / dll).exists() or (d / dll.lower()).exists() for d in dirs)
+
+
+def check(imports: list[str], game_dir: Path, is_32bit: bool, winsxs: Path | None = None) -> list[Requirement]:
     game_files = {p.name.lower() for p in Path(game_dir).iterdir()} if Path(game_dir).is_dir() else set()
     sys_dirs = winapi.system_dll_dirs(is_32bit)
     out: list[Requirement] = []
@@ -80,6 +105,10 @@ def check(imports: list[str], game_dir: Path, is_32bit: bool) -> list[Requiremen
             status = "present-in-game-folder"
         elif name.endswith("(built into Windows 8+)") or src.startswith("built into"):
             status = "built-in"
+        elif SXS.fullmatch(dll) and (winsxs is not None or sys_dirs):
+            found = sxs_present(dll, is_32bit, winsxs)
+            status = {True: "present-on-system", False: "missing", None: "unknown"}[found]
+            note = (note + " " if note else "") + "Side-by-side runtime (checked in WinSxS)."
         elif sys_dirs:
             status = "present-on-system" if any(Path(d, dll).exists() for d in sys_dirs) else "missing"
         else:

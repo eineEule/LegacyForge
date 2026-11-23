@@ -9,7 +9,10 @@ editions:
   - id: steam-dx11
     name: "Steam, DirectX 10/11 executable"
     exe: CivilizationV_DX11.exe
-    notes: "No hashes recorded yet: run `legacyforge analyze` and add the sha256 after testing."
+    version: "1.0.3.279 (403694, 2014-11-19)"
+    sha256:
+      - a7b4f52048bb5890b1f316852f1c0e12bbd6e5e9685d20b167fbd352196bd586
+    notes: "Hash recorded 2026-11-23 from a Steam install on Windows 11 (legacyforge analyze). Already Large Address Aware; Authenticode-signed by 2K Games."
   - id: steam-dx9
     name: "Steam, DirectX 9 executable"
     exe: CivilizationV.exe
@@ -21,10 +24,11 @@ known_issues:
     evidence: "Maintainer report (Windows, Steam DX11, YnAEMP 34-civ DLL, 8x MSAA): repeated mid-game crashes after hours of play. Not yet reproduced under a LegacyForge session."
     status: unconfirmed
   - id: laa-already-set
-    summary: "Community reports the Civ V executable already has the Large Address Aware flag."
-    evidence: "CivFanatics forum thread '4GB Patch' (threads/4gb-patch.687800). Confirm with `legacyforge analyze`."
+    summary: "The DX11 executable already has the Large Address Aware flag (4 GiB on 64-bit Windows)."
+    evidence: "Confirmed by legacyforge analyze on build 1.0.3.279 (sha256 a7b4f520...bd586), 2026-11-23. Also reported on CivFanatics (threads/4gb-patch.687800)."
     source: "https://forums.civfanatics.com/threads/4gb-patch.687800/"
-    status: unconfirmed
+    editions: [steam-dx11]
+    status: confirmed
 
 dependencies:
   - runtime: "Visual C++ 2008 SP1 Redistributable (x86)"
