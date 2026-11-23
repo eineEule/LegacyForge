@@ -1,0 +1,42 @@
+schema_version: 2
+game: rise-of-nations-ee
+name: "Rise of Nations: Extended Edition"
+recipe_version: 2
+detect:
+  steam_appid: 287450
+  exe: riseofnations.exe
+editions:
+  - id: steam-ee
+    name: "Steam Extended Edition (riseofnations.exe)"
+    exe: riseofnations.exe
+supported_windows: ["10", "11"]
+
+known_issues:
+  - id: nvidia-driver-2025
+    summary: "DirectX errors halting the game on some 2025 Nvidia drivers."
+    evidence: "r/riseofnations help thread (March 2025): rolling back from 572.83 to 566.36 fixed it for one user. Not reproduced."
+    status: unconfirmed
+  - id: multiplayer-lobbies
+    summary: "Online lobbies failing to load after game updates."
+    evidence: "Steam discussions after the June 2024 update; workaround reported: Steam download region set to a 'LAN EVENT' region."
+    status: unconfirmed
+
+fixes:
+  - laa: riseofnations.exe
+    status: suggested
+    order: 1
+    note: "community-recommended for crashes; needs --approve laa until a tested hash is recorded"
+  # Graphics API not yet confirmed: run `legacyforge analyze` on riseofnations.exe, then
+  # enable DXVK or ReShade for the API it reports (they can't share a DLL).
+
+test_plan:
+  - id: skirmish-late
+    duration_minutes: 60
+    steps: ["Huge map, 8 players, play into the Information Age", "Record with: legacyforge launch rise-of-nations-ee --scenario skirmish-late"]
+    pass_criteria: "No crash for the full duration"
+
+evidence: []
+notes:
+  - "Subscribe to the Community Balance/Bugfix Patch (CBP) on the Steam Workshop."
+  - "Thrones and Patriots content in the EE uses patriots.exe; analyze it separately."
+  - "Multiplayer fallback: a virtual LAN (Tailscale/ZeroTier)."

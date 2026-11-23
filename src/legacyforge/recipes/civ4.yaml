@@ -1,0 +1,57 @@
+schema_version: 2
+game: civ4
+name: "Sid Meier's Civilization IV: Beyond the Sword"
+recipe_version: 1
+detect:
+  steam_appid: 8800
+  exe: "Beyond the Sword/Civ4BeyondSword.exe"
+editions:
+  - id: steam-bts
+    name: "Steam, Beyond the Sword"
+    exe: "Beyond the Sword/Civ4BeyondSword.exe"
+    notes: "Requires base Civilization IV (Steam app 3900). Hashes not yet recorded."
+  - id: retail-bts-319
+    name: "Retail Beyond the Sword patched to 3.19"
+    exe: "Beyond the Sword/Civ4BeyondSword.exe"
+supported_windows: ["10", "11"]
+
+known_issues:
+  - id: large-map-crashes
+    summary: "Crashes on large maps / late game, commonly attributed to memory exhaustion (MAF)."
+    evidence: "CivFanatics thread 'problem with civ4 crashing on bigmaps' (threads/problem-with-civ4-crashing-on-bigmaps.696663). Not reproduced by LegacyForge."
+    source: "https://forums.civfanatics.com/threads/problem-with-civ4-crashing-on-bigmaps.696663/"
+    status: unconfirmed
+  - id: laa-already-set
+    summary: "Community reports the patched Beyond the Sword executable is already Large Address Aware."
+    evidence: "CivFanatics thread '4gb patch for civ 4' (threads/4gb-patch-for-civ-4.623834). Confirm with `legacyforge analyze`."
+    source: "https://forums.civfanatics.com/threads/4gb-patch-for-civ-4.623834/"
+    status: unconfirmed
+
+fixes:
+  - laa: {}
+    status: suggested
+    order: 1
+    note: "expected to be a no-op on patched BtS; matters only if analyze shows the flag missing"
+  - dxvk: {api: d3d9}
+    optional: true
+    status: experimental
+    order: 2
+    note: "Direct3D 9 game; DXVK is untested here: A/B test with sessions"
+  - compat: {disable_fullscreen_optimizations: true}
+    optional: true
+    status: experimental
+    order: 3
+
+test_plan:
+  - id: big-map-late-game
+    edition: steam-bts
+    duration_minutes: 120
+    steps:
+      - "Load the same Huge-map save past turn 300"
+      - "End turns for the full duration"
+      - "Record with: legacyforge launch civ4 --scenario big-map-late-game"
+    pass_criteria: "No crash, peak private bytes recorded for comparison"
+
+evidence: []
+notes:
+  - "Version differences matter: record the exact executable hash (legacyforge analyze) before trusting any fix."

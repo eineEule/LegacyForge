@@ -3,30 +3,34 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "oldgames"
-version = "0.1.0"
-description = "Patch and wrap old 32-bit PC games with small, reviewable recipes."
+name = "legacyforge"
+version = "0.2.0"
+description = "Evidence-driven compatibility engine for legacy 32-bit Windows PC games."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-dependencies = ["pyyaml>=6", "pefile>=2023.2.7"]
+dependencies = ["pyyaml>=6"]
 classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Topic :: Games/Entertainment",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+registry = ["cryptography>=42"]
+dev = ["pytest>=8", "cryptography>=42"]
 
 [project.scripts]
-oldgames = "oldgames.cli:main"
+legacyforge = "legacyforge.cli:main"
+oldgames = "legacyforge.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-oldgames = ["recipes/*.yaml", "data/*.yaml"]
+legacyforge = ["recipes/*.yaml", "data/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
+markers = ["integration: needs a real game install (excluded by default)"]
+addopts = "-m 'not integration'"

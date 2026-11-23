@@ -1,0 +1,47 @@
+schema_version: 2
+game: aoe2-1999
+name: "Age of Empires II (1999) / The Conquerors"
+recipe_version: 1
+detect:
+  exe: "age2_x1/age2_x1.exe"
+  paths:
+    - "C:/Program Files (x86)/Microsoft Games/Age of Empires II"
+    - "C:/Program Files/Microsoft Games/Age of Empires II"
+editions:
+  - id: conquerors
+    name: "The Conquerors (age2_x1.exe)"
+    exe: "age2_x1/age2_x1.exe"
+  - id: kings
+    name: "The Age of Kings (empires2.exe)"
+    exe: "empires2.exe"
+supported_windows: ["10", "11"]
+
+known_issues:
+  - id: directdraw
+    summary: "DirectDraw 2D renderer: display mode, scaling and Alt+Tab problems are typical on modern Windows."
+    evidence: "cnc-ddraw lists Age of Empires II and The Conquerors as supported and ships per-game profiles [EMPIRES2] and [age2_x1] in its ddraw.ini (v7.1.0.0). Specific defects on your system are not assumed."
+    source: "https://github.com/FunkyFr3sh/cnc-ddraw"
+    status: documented
+
+fixes:
+  - cnc-ddraw:
+      settings: {maintas: true, renderer: auto}
+    status: suggested
+    order: 1
+    note: "cnc-ddraw's own per-game profile for this exe applies automatically"
+  - compat: {dpi: application}
+    optional: true
+    status: suggested
+    order: 2
+    note: "only if the window is blurry or mis-sized on a scaled display"
+
+test_plan:
+  - id: skirmish
+    duration_minutes: 30
+    steps: ["Start a random-map skirmish", "Alt+Tab out and back twice", "Play 30 minutes, quit"]
+    pass_criteria: "Correct aspect ratio, Alt+Tab works, normal game speed, clean exit"
+
+evidence: []
+notes:
+  - "This recipe is for the 1999 CD release only. The HD Edition (Steam 221380) and Definitive Edition (Steam 813780) are different programs and need no DirectDraw wrapper."
+  - "No Steam auto-detect: pass --game-dir for your install folder."

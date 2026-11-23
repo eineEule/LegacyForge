@@ -1,0 +1,44 @@
+schema_version: 2
+game: rise-of-nations-2003
+name: "Rise of Nations (2003 retail) / Thrones and Patriots"
+recipe_version: 1
+detect:
+  exe: rise.exe
+  paths:
+    - "C:/Program Files (x86)/Microsoft Games/Rise of Nations"
+    - "C:/Program Files/Microsoft Games/Rise of Nations"
+editions:
+  - id: retail
+    name: "Retail CD (rise.exe)"
+    exe: rise.exe
+supported_windows: ["10", "11"]
+
+known_issues:
+  - id: identify-first
+    summary: "Executable names and graphics API for the retail release are not yet confirmed by LegacyForge."
+    evidence: "Lutris' retail installer launches rise.exe and keeps settings in %APPDATA%\\Microsoft Games\\Rise of Nations\\rise2.ini. Copy protection on retail discs may block executable changes."
+    source: "https://lutris.net/games/install/15452/view"
+    status: documented
+
+fixes:
+  - ini:
+      file: "${APPDATA}/Microsoft Games/Rise of Nations/rise2.ini"
+      set:
+        "*": {SkipIntroMovies: 1}
+    optional: true
+    status: known
+    note: "documented rise2.ini setting; the game must have run once to create the file"
+  - compat: {dpi: application}
+    optional: true
+    status: suggested
+
+test_plan:
+  - id: identify
+    duration_minutes: 5
+    steps: ["legacyforge analyze \"<install>\\rise.exe\" --json ron2003.json", "Attach the report to the recipe's evidence"]
+    pass_criteria: "Report records architecture, graphics API and protection status"
+
+evidence: []
+notes:
+  - "Distinct from the Steam Extended Edition (use the rise-of-nations-ee recipe for that)."
+  - "Online play used GameSpy, which shut down; use a virtual LAN for multiplayer."

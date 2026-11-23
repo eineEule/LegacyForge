@@ -73,8 +73,10 @@ class Ini(Fix):
     """
 
     type = "ini"
+    summary = "edit configuration file settings"
 
     def validate(self) -> None:
+        self._check_keys({"file", "set"})
         p = self.params
         if not isinstance(p, dict) or not isinstance(p.get("file"), str) or not isinstance(p.get("set"), dict):
             raise FixError("ini: needs 'file' and 'set'")
@@ -106,6 +108,5 @@ class Ini(Fix):
         text = raw.decode(encoding, errors="surrogateescape")
         new, log = edit_ini(text, self._settings())
         if new != text:
-            ctx.track(path)
-            path.write_bytes(new.encode(encoding, errors="surrogateescape"))
+            ctx.write(path, new.encode(encoding, errors="surrogateescape"))
         return f"{path.name}: " + "; ".join(log)

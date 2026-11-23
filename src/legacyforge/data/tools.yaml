@@ -16,3 +16,13 @@ reshade:
   homepage: https://reshade.me
   url: https://reshade.me/downloads/ReShade_Setup_6.3.3.exe
   sha256: null   # TODO: pin after verifying the download
+
+cnc-ddraw:
+  version: "7.1.0.0"
+  license: MIT
+  homepage: https://github.com/FunkyFr3sh/cnc-ddraw
+  url: https://github.com/FunkyFr3sh/cnc-ddraw/releases/download/v7.1.0.0/cnc-ddraw.zip
+  sha256: 0b13ab89a64c9918189b1dadd449ef6ed3cb3b7b19cabd96d8adbd95505bb908
+
+# dgVoodoo2 is intentionally absent: it is freeware whose redistribution terms
+# LegacyForge has not verified, so users supply their own download.

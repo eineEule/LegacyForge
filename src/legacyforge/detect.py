@@ -108,3 +108,51 @@ def locate(recipe: Recipe, libraries: list[Path] | None = None) -> Path | None:
         if d.is_dir() and (not recipe.exe or (d / recipe.exe).exists()):
             return d
     return None
+
+
+# Generic discovery (no recipe needed) ------------------------------------
+
+def steam_installed(libraries: list[Path] | None = None) -> list[dict]:
+    """Every installed Steam app: appid, name, folder."""
+    out = []
+    for lib in libraries if libraries is not None else steam_libraries():
+        for acf in sorted((lib / "steamapps").glob("appmanifest_*.acf")):
+            try:
+                st = parse_vdf(acf.read_text(encoding="utf-8", errors="replace")).get("AppState") or {}
+            except OSError:
+                continue
+            d = lib / "steamapps" / "common" / st.get("installdir", "")
+            if st.get("installdir") and d.is_dir():
+                out.append({"source": "steam", "appid": st.get("appid"), "name": st.get("name"), "dir": str(d)})
+    return out
+
+
+GOG_KEY = r"SOFTWARE\WOW6432Node\GOG.com\Games"
+
+
+def gog_installed() -> list[dict]:
+    """GOG installs registered in the Windows registry (read-only)."""
+    from . import winapi
+
+    reg = winapi.registry()
+    if not hasattr(reg, "subkeys"):
+        return []
+    out = []
+    for gid in reg.subkeys(winapi.HKLM, GOG_KEY):
+        key = f"{GOG_KEY}\\{gid}"
+        name = reg.get(winapi.HKLM, key, "gameName") or reg.get(winapi.HKLM, key, "GAMENAME")
+        path = reg.get(winapi.HKLM, key, "path") or reg.get(winapi.HKLM, key, "PATH")
+        exe = reg.get(winapi.HKLM, key, "exe") or reg.get(winapi.HKLM, key, "EXE")
+        if path and Path(path).is_dir():
+            out.append({"source": "gog", "appid": gid, "name": name, "dir": path, "exe": exe})
+    return out
+
+
+def discover(extra_dirs: list[Path] | None = None) -> list[dict]:
+    """Steam + GOG + any folders you point at. Steam is optional."""
+    found = steam_installed() + gog_installed()
+    for d in extra_dirs or []:
+        d = Path(d)
+        if d.is_dir():
+            found.append({"source": "folder", "appid": None, "name": d.name, "dir": str(d)})
+    return found

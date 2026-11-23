@@ -1,6 +1,6 @@
 import pytest
 
-from oldgames import pe
+from legacyforge import pe
 from conftest import make_pe
 
 

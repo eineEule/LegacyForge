@@ -3,10 +3,12 @@ import tarfile
 
 import pytest
 
-from oldgames import engine, pe, tools
-from oldgames.fixes import FixError
-from oldgames.fixes.ini import edit_ini
-from oldgames.recipe import RecipeError, bundled, parse
+from legacyforge import engine, pe, tools
+
+LAA_OK = {"laa"}
+from legacyforge.fixes import FixError
+from legacyforge.fixes.ini import edit_ini
+from legacyforge.recipe import RecipeError, bundled, parse
 
 
 def recipe(*fixes, exe="game.exe"):
@@ -43,26 +45,26 @@ def test_apply_and_revert_roundtrip(game):
     original_exe = (game / "game.exe").read_bytes()
     original_ini = (game / "settings.ini").read_text()
     r = recipe({"laa": {}}, {"ini": {"file": "settings.ini", "set": {"Video": {"MSAA": 2}}}})
-    out = engine.apply(engine.make_plan(r, game))
+    out = engine.apply(engine.make_plan(r, game, approvals=LAA_OK))
     assert any("LAA flag set" in line for line in out)
     assert pe.read_info(game / "game.exe").large_address_aware
     assert "MSAA = 2" in (game / "settings.ini").read_text()
     assert engine.status(r, game) is not None
 
     with pytest.raises(Exception, match="already applied"):
-        engine.apply(engine.make_plan(r, game))
+        engine.apply(engine.make_plan(r, game, approvals=LAA_OK))
 
     engine.revert(r, game)
     assert (game / "game.exe").read_bytes() == original_exe
     assert (game / "settings.ini").read_text() == original_ini
-    assert not (game / ".oldgames").exists()
+    assert not (game / ".legacyforge").exists()
 
 
 def test_failure_rolls_back(game):
     original = (game / "game.exe").read_bytes()
     r = recipe({"laa": {}}, {"ini": {"file": "missing.ini", "set": {"A": {"b": 1}}}})
     with pytest.raises(FixError, match="Rolled back"):
-        engine.apply(engine.make_plan(r, game))
+        engine.apply(engine.make_plan(r, game, approvals=LAA_OK))
     assert (game / "game.exe").read_bytes() == original
     assert engine.status(r, game) is None
 
@@ -70,7 +72,7 @@ def test_failure_rolls_back(game):
 def test_no_changes_leaves_no_snapshot(game):
     pe.set_laa(game / "game.exe")
     r = recipe({"laa": {}})
-    out = engine.apply(engine.make_plan(r, game))
+    out = engine.apply(engine.make_plan(r, game, approvals=LAA_OK))
     assert "nothing needed changing" in out
     assert engine.status(r, game) is None
 
@@ -95,10 +97,13 @@ def test_dxvk_with_fake_release(game, tmp_path, monkeypatch):
     archive = tmp_path / "dxvk.tar.gz"
     archive.write_bytes(buf.getvalue())
     monkeypatch.setattr(tools, "fetch", lambda name, allow=False: archive)
+    from legacyforge.fixes import graphics
 
     (game / "d3d9.dll").write_bytes(b"original system-ish dll")
     r = recipe({"dxvk": {"api": "d3d11"}}, {"dxvk": {"api": "d3d9"}})
-    engine.apply(engine.make_plan(r, game))
+    monkeypatch.setattr(graphics.GraphicsBackend, "_install_dll",
+                        lambda self, ctx, dest, data, arch: ctx.write(dest, data))
+    engine.apply(engine.make_plan(r, game, approvals={"replace-foreign"}))
     assert (game / "dxgi.dll").read_bytes() == b"x32/dxgi.dll"
     assert (game / "d3d9.dll").read_bytes() == b"x32/d3d9.dll"
     engine.revert(r, game)

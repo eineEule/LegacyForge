@@ -1,0 +1,82 @@
+schema_version: 2
+game: civ5
+name: "Sid Meier's Civilization V"
+recipe_version: 2
+detect:
+  steam_appid: 8930
+  exe: CivilizationV_DX11.exe
+editions:
+  - id: steam-dx11
+    name: "Steam, DirectX 10/11 executable"
+    exe: CivilizationV_DX11.exe
+    notes: "No hashes recorded yet: run `legacyforge analyze` and add the sha256 after testing."
+  - id: steam-dx9
+    name: "Steam, DirectX 9 executable"
+    exe: CivilizationV.exe
+supported_windows: ["10", "11"]
+
+known_issues:
+  - id: late-game-memory
+    summary: "Crashes to desktop after several hours of play, worse with large maps, many civs and high MSAA."
+    evidence: "Maintainer report (Windows, Steam DX11, YnAEMP 34-civ DLL, 8x MSAA): repeated mid-game crashes after hours of play. Not yet reproduced under a LegacyForge session."
+    status: unconfirmed
+  - id: laa-already-set
+    summary: "Community reports the Civ V executable already has the Large Address Aware flag."
+    evidence: "CivFanatics forum thread '4GB Patch' (threads/4gb-patch.687800). Confirm with `legacyforge analyze`."
+    source: "https://forums.civfanatics.com/threads/4gb-patch.687800/"
+    status: unconfirmed
+
+dependencies:
+  - runtime: "Visual C++ 2008 SP1 Redistributable (x86)"
+    note: "Steam installs ship it in the game's VCRedist folder."
+  - runtime: "DirectX End-User Runtimes (June 2010)"
+    note: "Steam installs ship DXSetup.exe in the game's DirectX folder."
+
+fixes:
+  # A no-op when the flag is already set (expected); included so analyze/apply confirm it.
+  - laa: [CivilizationV.exe, CivilizationV_DX11.exe]
+    status: suggested
+    order: 1
+    note: "expected to be already set; LegacyForge verifies instead of assuming"
+  - ini:
+      file: "${DOCUMENTS}/My Games/Sid Meier's Civilization 5/GraphicsSettingsDX11.ini"
+      set:
+        UserSettings: {MSAASamples: 2}
+    status: suggested
+    order: 2
+    editions: [steam-dx11]
+    note: "8x MSAA spends memory a 32-bit process can't spare"
+  - ini:
+      file: "${DOCUMENTS}/My Games/Sid Meier's Civilization 5/config.ini"
+      set:
+        "*": {LoggingEnabled: 1}
+    optional: true
+    status: known
+    order: 3
+    note: "turns on the game's own logs so the next crash leaves evidence"
+  - dxvk: {api: d3d11, exe: CivilizationV_DX11.exe}
+    optional: true
+    status: experimental
+    order: 4
+    editions: [steam-dx11]
+    note: "A/B test only; compare sessions before keeping"
+
+test_plan:
+  - id: late-game
+    edition: steam-dx11
+    duration_minutes: 180
+    steps:
+      - "Load the same late-game save (turn 250+, large map) each session"
+      - "Play or auto-end turns for the full duration"
+      - "Record with: legacyforge launch civ5 --scenario late-game"
+    pass_criteria: "No crash and no Application Error event for the full duration"
+  - id: launch-smoke
+    duration_minutes: 10
+    steps: ["Launch, start a new duel-size game, play 10 turns, quit to desktop"]
+    pass_criteria: "Clean exit"
+
+evidence: []
+
+notes:
+  - "Civ V is 32-bit: the ceiling is 4 GiB whatever the fixes. On huge maps or 30+ civs, save and restart every 2-3 hours."
+  - "Mods that replace the game core DLL (e.g. YnAEMP, Community Patch) change memory use; record which ones are active in session notes."

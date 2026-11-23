@@ -1,5 +1,5 @@
-from oldgames import detect
-from oldgames.recipe import parse
+from legacyforge import detect
+from legacyforge.recipe import parse
 
 LIBRARY_VDF = r'''
 "libraryfolders"

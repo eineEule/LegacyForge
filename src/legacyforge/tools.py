@@ -16,21 +16,24 @@ from pathlib import Path
 import yaml
 
 
+MAX_DOWNLOAD = 512 << 20
+
+
 class ToolError(Exception):
     pass
 
 
 def cache_dir() -> Path:
-    base = os.environ.get("OLDGAMES_CACHE")
+    base = os.environ.get("LEGACYFORGE_CACHE") or os.environ.get("OLDGAMES_CACHE")
     if base:
         return Path(base)
     if sys.platform == "win32":
-        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "oldgames" / "cache"
-    return Path.home() / ".cache" / "oldgames"
+        return Path(os.environ.get("LOCALAPPDATA", Path.home())) / "LegacyForge" / "cache"
+    return Path.home() / ".cache" / "legacyforge"
 
 
 def load_pins() -> dict:
-    text = resources.files("oldgames").joinpath("data/tools.yaml").read_text(encoding="utf-8")
+    text = resources.files("legacyforge").joinpath("data/tools.yaml").read_text(encoding="utf-8")
     return yaml.safe_load(text)
 
 
@@ -51,12 +54,20 @@ def fetch(name: str, allow_unpinned: bool = False) -> Path:
     dest = cache_dir() / f"{name}-{spec['version']}-{Path(url).name}"
     dest.parent.mkdir(parents=True, exist_ok=True)
 
+    if not url.startswith("https://"):
+        raise ToolError(f"{name}: only https downloads are allowed")
     if not dest.exists():
         print(f"  downloading {name} {spec['version']} from {url}")
         tmp = dest.with_suffix(dest.suffix + ".part")
-        req = urllib.request.Request(url, headers={"User-Agent": "oldgames"})
+        req = urllib.request.Request(url, headers={"User-Agent": "legacyforge"})
+        total = 0
         with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
             while chunk := r.read(1 << 20):
+                total += len(chunk)
+                if total > MAX_DOWNLOAD:
+                    f.close()
+                    tmp.unlink()
+                    raise ToolError(f"{name}: download exceeds {MAX_DOWNLOAD >> 20} MiB limit")
                 f.write(chunk)
         tmp.replace(dest)
 
