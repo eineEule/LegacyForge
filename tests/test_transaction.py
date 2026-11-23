@@ -87,7 +87,10 @@ def test_refuses_to_write_through_symlink(game, tmp_path):
     outside = tmp_path / "outside.ini"
     outside.write_text("[A]\nx = 1\n")
     (game / "s.ini").unlink()
-    (game / "s.ini").symlink_to(outside)
+    try:
+        (game / "s.ini").symlink_to(outside)
+    except OSError:
+        pytest.skip("creating symlinks needs admin or Developer Mode on Windows")
     with pytest.raises(Exception, match="link"):
         engine.apply(engine.make_plan(ini_recipe(), game))
     assert outside.read_text() == "[A]\nx = 1\n"
@@ -96,8 +99,8 @@ def test_refuses_to_write_through_symlink(game, tmp_path):
 def test_v01_snapshot_still_reverts(game):
     snap = game / ".oldgames" / "t"
     (snap / "files").mkdir(parents=True)
-    (snap / "files" / "0").write_text("[A]\nx = 1\n")
-    (game / "s.ini").write_text("[A]\nx = 2\n")
+    (snap / "files" / "0").write_bytes(b"[A]\nx = 1\n")  # bytes: text mode would add \r on Windows
+    (game / "s.ini").write_bytes(b"[A]\nx = 2\n")
     (game / "added.dll").write_bytes(b"x")
     (snap / "manifest.json").write_text(json.dumps({
         "recipe": "t", "created": "2026-11-22T22:59:32", "fixes": ["ini"],
@@ -105,7 +108,7 @@ def test_v01_snapshot_still_reverts(game):
                        __import__("hashlib").sha256(b"[A]\nx = 1\n").hexdigest()}],
         "added": [str((game / "added.dll").resolve())]}))
     engine.revert(ini_recipe(), game)
-    assert (game / "s.ini").read_text() == "[A]\nx = 1\n" and not (game / "added.dll").exists()
+    assert (game / "s.ini").read_bytes() == b"[A]\nx = 1\n" and not (game / "added.dll").exists()
     assert not (game / ".oldgames").exists()
 
 
