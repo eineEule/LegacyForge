@@ -14,6 +14,49 @@ Discover → Analyze → Recommend → Back up → Apply → Launch → Monitor 
 LegacyForge can't guarantee any game becomes stable. It tells you what it knows, what it's guessing
 and what it changed.
 
+## Why
+
+Many classic PC games still run on Windows 10 and 11 but crash or misbehave. Common causes are the
+32-bit memory ceiling, DirectDraw and old Direct3D drivers, high-DPI scaling, and missing runtimes.
+The fixes are well known but scattered across forums and wikis, and applying them by hand
+(hex-editing an exe, dropping DLLs into a game folder) is easy to get wrong and hard to undo.
+LegacyForge turns that knowledge into a tool that explains itself and can always put things back.
+
+## How it works
+
+1. **Discover.** Finds games through Steam library files, the GOG registry, or any folder or exe
+   you point at. Steam isn't required.
+2. **Analyze (read-only).** Parses the executable with a bounds-checked PE parser and reports:
+   - 32 or 64-bit, and whether it already has the 4 GB (Large Address Aware) flag
+   - imported DLLs, including delay-loaded ones
+   - version info, manifest (DPI awareness, privilege level), signature, signs of packing or DRM
+   - which graphics API it likely uses (DirectDraw, Direct3D 5–11, OpenGL, Glide), each finding
+     marked strong, medium or weak
+   - your system: Windows build, GPU and driver, 32/64-bit Vulkan loaders, legacy runtimes, and
+     any existing Windows compatibility settings
+
+   Nothing is modified.
+3. **Recommend.** Rules map that evidence to fixes. Each recommendation states the problem,
+   evidence, risk, confidence, whether it touches the exe or needs admin, how to undo it and how
+   to verify it. Unknown games get conservative advice: being 32-bit alone is not treated as a
+   problem.
+4. **Back up and apply.** A recipe (YAML) or your own choice of fixes runs as a transaction:
+   - every file is backed up and SHA-256 hashed first, and written atomically
+   - if any step fails, everything rolls back
+   - risky steps (patching the exe, replacing a DLL another tool installed) need your explicit
+     `--approve`
+5. **Launch and monitor.** Starts the game with an optional per-game profile (CPU affinity,
+   priority, arguments) and records:
+   - memory use over time
+   - exit code, classified (a nonzero code alone isn't treated as a crash)
+   - Windows Application Error events and wrapper logs
+
+   Each run is saved as a session, locally only.
+6. **Verify.** Compares sessions with and without a fix (improvement, regression or inconclusive).
+   A game is marked "verified stable" only after repeated passing sessions of a defined test.
+7. **Restore.** `revert` puts every file and setting back. If something changed since the patch
+   (a Steam update, your own edit, another mod), it stops and asks instead of overwriting.
+
 ## Quick start
 
 ```
