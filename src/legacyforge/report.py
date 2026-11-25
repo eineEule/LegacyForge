@@ -31,6 +31,8 @@ def to_text(r: dict, *, verbose: bool = False) -> str:
              + (f" - {sig['note']}" if sig.get("note") else ""))
     if e["manifest"]:
         L.append("  manifest       : " + ", ".join(f"{k}={v}" for k, v in e["manifest"].items()))
+    if e.get("looks_like_launcher"):
+        L.append("  role           : looks like a launcher (starts another program)")
     if e["is_dotnet"]:
         L.append("  runtime        : .NET")
     if e["header_issues"]:
@@ -48,9 +50,14 @@ def to_text(r: dict, *, verbose: bool = False) -> str:
         for p in e["protection"]:
             L.append(f"  [{p['strength']}] {p['detail']}")
     f = e["folder"]
-    if f["proxy_dlls"] or f["bundled_libraries"]:
+    gd = [g for g in f.get("game_dlls", []) if g["graphics_imports"] or g["imported_by_exe"]]
+    if f["proxy_dlls"] or f["bundled_libraries"] or gd:
         L.append("")
         L.append("Game folder")
+        for g in gd:
+            how = "loaded by exe" if g["imported_by_exe"] else "not imported directly"
+            gfx = ", ".join(g["graphics_imports"]) or "no graphics imports"
+            L.append(f"  game dll {g['dll']:<15} {how:<22} {gfx}")
         for p in f["proxy_dlls"]:
             owner = f"installed by LegacyForge ({p['owner']})" if p.get("owner") else "not installed by LegacyForge"
             L.append(f"  proxy {p['name']:<16} {p.get('arch') or '?':<4} {p.get('description') or ''}  [{owner}]")

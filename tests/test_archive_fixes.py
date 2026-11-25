@@ -200,3 +200,18 @@ def test_laa_hash_match_must_cover_every_target(tmp_path):
     p = engine.make_plan(r, d)
     assert p.edition.id == "v1"
     assert [t for t, _ in p.missing_approvals] == ["laa"] and "other.exe" in p.missing_approvals[0][1]
+
+
+def test_hash_match_alone_does_not_waive_exe_approval(tmp_path):
+    from legacyforge.fsutil import sha256_file
+
+    d = tmp_path / "Q"
+    d.mkdir()
+    (d / "game.exe").write_bytes(build_pe())
+    eds = [{"id": "v1", "name": "1.0", "sha256": [sha256_file(d / "game.exe")]}]
+    sug = parse({"schema_version": 2, "game": "t", "name": "T", "detect": {"exe": "game.exe"},
+                 "editions": eds, "fixes": [{"laa": {}, "status": "suggested"}]})
+    assert [t for t, _ in engine.make_plan(sug, d).missing_approvals] == ["laa"]
+    known = parse({"schema_version": 2, "game": "t", "name": "T", "detect": {"exe": "game.exe"},
+                   "editions": eds, "fixes": [{"laa": {}, "status": "known"}]})
+    assert not engine.make_plan(known, d).missing_approvals

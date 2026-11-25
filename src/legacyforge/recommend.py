@@ -73,7 +73,7 @@ def _protected(c: Context) -> list[str]:
 @rule
 def memory_laa(c: Context) -> list[Recommendation]:
     e = c.exe
-    if e.arch != "x32" or e.large_address_aware:
+    if e.arch != "x32" or e.large_address_aware or e.looks_like_launcher:
         return []
     evidence = ["32-bit executable without the Large Address Aware flag (2 GiB limit)"]
     blocked = []
@@ -240,6 +240,21 @@ def runtimes(c: Context) -> list[Recommendation]:
             rollback=False, verification="Re-run legacyforge analyze; status should change to present",
             confidence="high"))
     return out
+
+
+@rule
+def launcher_notice(c: Context) -> list[Recommendation]:
+    if not c.exe.looks_like_launcher:
+        return []
+    return [Recommendation(
+        id="info.launcher", category=INFO,
+        problem="This looks like a launcher, not the game itself",
+        evidence=["small executable that starts other programs (CreateProcess/ShellExecute)",
+                  "no graphics API of its own"],
+        fix=None, fix_type=None, benefit="Fixes belong on the executable it starts; analyze that one",
+        prerequisites=[], side_effects=[], risk="low", needs_admin=False, modifies_executable=False,
+        rollback=False, verification="Launch it and check which .exe appears in Task Manager",
+        confidence="medium")]
 
 
 @rule

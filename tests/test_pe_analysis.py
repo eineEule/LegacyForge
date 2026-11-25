@@ -155,3 +155,28 @@ def test_vc2008_side_by_side(tmp_path):
     assert reqs["msvcr90.dll"].status == "present-on-system"
     assert reqs["msvcp80.dll"].status == "missing"
     assert deps.sxs_present("msvcr90.dll", False, sxs) is False  # x64 store is separate
+
+
+def test_renderer_in_game_dll(tmp_path):
+    d = tmp_path / "RoN"
+    d.mkdir()
+    (d / "game.exe").write_bytes(build_pe(imports={"engine.dll": ["Init"], "kernel32.dll": ["Sleep"]}))
+    (d / "engine.dll").write_bytes(build_pe(characteristics=0x2102, imports={"d3d9.dll": ["Direct3DCreate9"]}))
+    (d / "extra.dll").write_bytes(build_pe(characteristics=0x2102, imports={"opengl32.dll": ["glBegin"]}))
+    a = analysis.analyze(d / "game.exe", check_signature=False)
+    g = {x.api: x for x in a.graphics}
+    assert g["d3d9"].strength == "strong" and "engine.dll" in g["d3d9"].evidence[0].detail
+    assert g["opengl"].strength == "medium"
+    assert {x["dll"] for x in a.folder["game_dlls"]} == {"engine.dll", "extra.dll"}
+
+
+def test_launcher_detection(tmp_path):
+    from legacyforge import recommend
+
+    d = tmp_path / "L"
+    d.mkdir()
+    (d / "patriots.exe").write_bytes(build_pe(imports={"kernel32.dll": ["CreateProcessA"], "gdi32.dll": ["BitBlt"]}))
+    a = analysis.analyze(d / "patriots.exe", check_signature=False)
+    assert a.looks_like_launcher
+    ids = [r.id for r in recommend.recommend(recommend.Context(exe=a))]
+    assert "info.launcher" in ids and "memory.laa" not in ids

@@ -37,6 +37,10 @@ API_BY_DLL = {
 PROXY_DLLS = sorted(set(API_BY_DLL) | {"dinput.dll", "dinput8.dll", "dsound.dll", "winmm.dll",
                                         "version.dll", "xinput1_3.dll", "d3dimm.dll", "dxgi.dll"})
 
+MAX_GAME_DLLS = 40
+LAUNCH_FUNCS = {"createprocessa", "createprocessw", "shellexecutea", "shellexecutew", "shellexecuteexa",
+                "shellexecuteexw", "winexec"}
+
 # Section names known to belong to packers / protection systems.
 PROTECTION_SECTIONS = {
     "upx0": "UPX packer", "upx1": "UPX packer", ".aspack": "ASPack packer",
@@ -108,6 +112,7 @@ class ExeAnalysis:
     protection: list[Evidence]
     overlay_bytes: int
     folder: dict
+    looks_like_launcher: bool = False
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -204,6 +209,34 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
     for name in _string_hits(data, list(API_BY_DLL)) - imported:
         note(name, Evidence("string", f"'{name}' appears in the binary (possible runtime load)", WEAK))
     folder = analyze_folder(exe)
+
+    # Follow the exe into game DLLs: many engines keep rendering in a DLL.
+    game_dlls = []
+    try:
+        local = {x.name.lower(): x for x in exe.parent.iterdir()
+                 if x.suffix.lower() == ".dll" and x.is_file() and not x.is_symlink()}
+    except OSError:
+        local = {}
+    for name, path in sorted(local.items())[:MAX_GAME_DLLS]:
+        if name in API_BY_DLL or name in PROXY_DLLS:
+            continue  # wrappers are reported as proxies, not as the game's renderer
+        try:
+            if path.stat().st_size > (64 << 20):
+                continue
+            sub = pe.PEFile(path.read_bytes(), full=False).imports()
+        except (pe.PEError, OSError):
+            continue
+        apis_here = sorted({d.name for d in sub if d.name in API_BY_DLL})
+        loaded = name in imported
+        game_dlls.append({"dll": path.name, "imported_by_exe": loaded, "graphics_imports": apis_here})
+        for g in apis_here:
+            if loaded:
+                note(g, Evidence("game-dll", f"{path.name} (imported by the exe) imports {g}", STRONG))
+            else:
+                note(g, Evidence("game-dll", f"{path.name} in the game folder imports {g} "
+                                             f"(the exe may load it at runtime)", MEDIUM))
+    folder["game_dlls"] = game_dlls
+
     for b in folder["bundled_libraries"] + [{"dll": x["name"]} for x in folder["proxy_dlls"]]:
         n = b["dll"].lower()
         if n.startswith("glide") and n in API_BY_DLL:
@@ -240,6 +273,10 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
         except winapi.Unavailable as e:
             sig["note"] = f"validity not checked: {e}"
 
+    funcs = {f.lower() for d in imports for f in d.functions}
+    looks_like_launcher = (len(data) < (2 << 20) and bool(funcs & LAUNCH_FUNCS)
+                           and not any(g.strength != WEAK for g in graphics if g.api != "software"))
+
     laa = p.info.large_address_aware if p.is_32bit else None
     return ExeAnalysis(
         path=str(exe), sha256=sha256_bytes(data), size=len(data), arch=p.info.arch,
@@ -251,6 +288,7 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
         imports=[{"dll": d.name, "delay": d.delay, "functions": len(d.functions)} for d in imports],
         graphics=graphics, version_info=version, manifest=pe.manifest_facts(manifest_text),
         signature=sig, protection=protection, overlay_bytes=p.overlay_size, folder=folder,
+        looks_like_launcher=looks_like_launcher,
     )
 
 

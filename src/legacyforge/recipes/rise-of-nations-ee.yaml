@@ -9,6 +9,10 @@ editions:
   - id: steam-ee
     name: "Steam Extended Edition (riseofnations.exe)"
     exe: riseofnations.exe
+    version: "00.2009.09.1500UO"
+    sha256:
+      - 30478a44b577cb11ebcbbbf53d3e93ba02fd2aacf3bdefa6552c9b6449625079
+    notes: "Hash recorded 2026-11-25 from a Steam install on Windows 11. 32-bit, not Large Address Aware, unsigned, no protection sections detected; renderer not in the exe's own imports."
 supported_windows: ["10", "11"]
 
 known_issues:
@@ -38,5 +42,5 @@ test_plan:
 evidence: []
 notes:
   - "Subscribe to the Community Balance/Bugfix Patch (CBP) on the Steam Workshop."
-  - "Thrones and Patriots content in the EE uses patriots.exe; analyze it separately."
+  - "patriots.exe is a small launcher (default 'TODO' version strings, no renderer); fixes belong on riseofnations.exe."
   - "Multiplayer fallback: a virtual LAN (Tailscale/ZeroTier)."

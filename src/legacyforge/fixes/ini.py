@@ -84,6 +84,10 @@ class Ini(Fix):
             if not isinstance(pairs, dict):
                 raise FixError(f"ini: section '{sec}' must map keys to values")
 
+    def describe_static(self) -> str:
+        sets = ", ".join(f"{k} = {v}" for pairs in self.params["set"].values() for k, v in pairs.items())
+        return f"set {sets} in {Path(self.params['file']).name}"
+
     def _settings(self) -> dict:
         return {(None if s == "*" else s): v for s, v in self.params["set"].items()}
 

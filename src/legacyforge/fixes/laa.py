@@ -24,6 +24,11 @@ class LAA(Fix):
     modifies_executable = True
     summary = "set the Large Address Aware (4 GiB) flag"
 
+    def describe_static(self) -> str:
+        p = self.params
+        names = [p] if isinstance(p, str) else p if isinstance(p, list) else [p.get("exe") or self.recipe_exe or "exe"]
+        return "set the Large Address Aware (4 GiB) flag on " + ", ".join(names)
+
     def _targets(self, ctx: Context) -> list[Path]:
         p = self.params
         if isinstance(p, str):

@@ -75,6 +75,9 @@ class DXVK(GraphicsBackend):
     def _dlls(self) -> list[str]:
         return DXVK_API_DLLS[self.params["api"]]
 
+    def describe_static(self) -> str:
+        return f"install DXVK for {self.params['api']} ({', '.join(self._dlls())})"
+
     def proxy_targets(self, ctx: Context) -> list[Path]:
         d = self._exe(ctx).parent
         out = [d / x for x in self._dlls()]

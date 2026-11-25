@@ -101,6 +101,13 @@ def make_plan(recipe: Recipe, game_dir: Path, enable: set[str] | None = None, al
         raise RecipeError(f"fixes conflict over the same file: {detail}")
 
     needed = [a for e in entries for a in e.fix.approvals_needed(ctx)]
+    for e in entries:
+        # A hash match proves which version this is, not that patching it is safe:
+        # exe changes also need the recipe to mark the fix known or verified.
+        if e.fix.modifies_executable and e.status not in ("known", "verified") and \
+                not any(tok == "laa" for tok, _ in needed):
+            needed.append(("laa", f"the recipe marks this {e.fix.type} fix as '{e.status}', "
+                                  f"not tested on this version"))
     return Plan(recipe, ctx, entries, edition, exe_sha, needed)
 
 

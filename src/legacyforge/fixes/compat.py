@@ -57,6 +57,9 @@ class Compat(Fix):
             out.append("DISABLEDXMAXIMIZEDWINDOWEDMODE")
         return out
 
+    def describe_static(self) -> str:
+        return f"Windows compatibility (current user): {' '.join(self.flags())}"
+
     def describe(self, ctx: Context) -> str:
         return f"Windows compatibility for {self._exe(ctx).name}: {' '.join(self.flags())} (current user)"
 
