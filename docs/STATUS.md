@@ -40,6 +40,7 @@ Legend:
 | Steam relaunch hand-off following | 🟡 |
 | Exit classification (NTSTATUS), Event Log 1000 parsing | ✅ parsing · 🟡 live `wevtutil` |
 | Wrapper log collection | ✅ |
+| Loaded-module capture during sessions (EnumProcessModulesEx with LIST_MODULES_ALL, so 32-bit DLLs of WOW64 games are visible) | ✅ Linux · 🟡 Windows |
 | Sessions, outcome categories, baseline comparison, "verified stable" rules | ✅ |
 | Privacy controls (local, retention, purge, sanitized export, no dumps) | ✅ |
 

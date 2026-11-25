@@ -61,6 +61,7 @@ class RunResult:
     samples: list[Sample]
     peak: dict
     handed_off: bool = False
+    modules: list[dict] = field(default_factory=list)   # DLLs seen loaded during the run
 
 
 # memory probes -------------------------------------------------------------
@@ -98,6 +99,10 @@ if winapi.IS_WINDOWS:
     _k32.SetProcessAffinityMask.argtypes = [wintypes.HANDLE, ctypes.c_size_t]
     _k32.SetPriorityClass.argtypes = [wintypes.HANDLE, wintypes.DWORD]
     _psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD]
+    _psapi.EnumProcessModulesEx.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.HMODULE), wintypes.DWORD,
+                                            ctypes.POINTER(wintypes.DWORD), wintypes.DWORD]
+    _psapi.GetModuleFileNameExW.argtypes = [wintypes.HANDLE, wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD]
+    LIST_MODULES_ALL = 0x03  # 32-bit modules of a WOW64 process too (plain EnumProcessModules hides them)
 
 
 def _win_sample(handle) -> Sample:
@@ -117,6 +122,31 @@ def _win_sample(handle) -> Sample:
         addr = nxt
     return Sample(0, round(c.PrivateUsage / 2**20, 1), round(c.WorkingSetSize / 2**20, 1),
                   round(used / 2**20, 1))
+
+
+def _win_modules(handle) -> list[dict]:
+    arr = (wintypes.HMODULE * 2048)()
+    needed = wintypes.DWORD()
+    if not _psapi.EnumProcessModulesEx(handle, arr, ctypes.sizeof(arr), ctypes.byref(needed), LIST_MODULES_ALL):
+        return []
+    out = []
+    buf = ctypes.create_unicode_buffer(1024)
+    for i in range(min(needed.value // ctypes.sizeof(wintypes.HMODULE), 2048)):
+        if _psapi.GetModuleFileNameExW(handle, arr[i], buf, 1024):
+            out.append({"name": Path(buf.value).name, "path": buf.value})
+    return out
+
+
+def _proc_modules(pid: int) -> list[dict]:
+    seen: dict[str, str] = {}
+    try:
+        for line in Path(f"/proc/{pid}/maps").read_text().splitlines():
+            parts = line.split(None, 5)
+            if len(parts) == 6 and parts[5].startswith("/") and (".so" in parts[5] or parts[5].lower().endswith(".dll")):
+                seen.setdefault(Path(parts[5]).name, parts[5])
+    except OSError:
+        return []
+    return [{"name": n, "path": p} for n, p in seen.items()]
 
 
 def _proc_sample(pid: int) -> Sample:
@@ -185,11 +215,21 @@ def run(exe: Path, profile: LaunchProfile, *, interval: float = 5.0, max_minutes
     if winapi.IS_WINDOWS:
         handle = _k32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE, False, pid)
 
+    modules: dict[str, dict] = {}
+    next_module_scan = [0.0]
+
     def sample(h=None):
         h = h or handle
         s = _win_sample(h) if h else _proc_sample(pid)
         s.t = round(time.monotonic() - t0, 1)
         samples.append(s)
+        if s.t >= next_module_scan[0]:  # module list: soon after start, then every 5 minutes
+            try:
+                for m in (_win_modules(h) if h else _proc_modules(pid)):
+                    modules.setdefault(m["path"].lower(), m)
+            except Exception:
+                pass
+            next_module_scan[0] = s.t + 300
         if on_sample:
             on_sample(s)
 
@@ -232,7 +272,8 @@ def run(exe: Path, profile: LaunchProfile, *, interval: float = 5.0, max_minutes
         "working_set_mb": max((s.working_set_mb or 0 for s in samples), default=None),
         "virtual_mb": max((s.virtual_mb or 0 for s in samples), default=None),
     }
-    return RunResult(pid, started, ended, exit_code, killed, _downsample(samples), peak, handed_off)
+    return RunResult(pid, started, ended, exit_code, killed, _downsample(samples), peak, handed_off,
+                     sorted(modules.values(), key=lambda m: m["name"].lower()))
 
 
 def _wait_pid(pid: int, interval: float, sample_cb) -> int | None:
@@ -290,3 +331,6 @@ def wrapper_logs(game_dir: Path, since: float, max_lines: int = 40) -> list[dict
 if sys.platform != "win32":
     def _win_sample(handle):  # noqa: F811 - placeholder off Windows
         return Sample(0)
+
+    def _win_modules(handle):  # noqa: F811
+        return []

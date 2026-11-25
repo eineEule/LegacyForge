@@ -223,6 +223,9 @@ def cmd_launch(a):
         print(f"  {line}")
     pk = s.memory["peak"]
     print(f"  peak private {pk['private_mb']} MiB, peak virtual {pk['virtual_mb']} MiB, runtime {s.runtime_s / 60:.1f} min")
+    gm = sessions.graphics_modules(s.modules)
+    if gm:
+        print(f"  graphics modules loaded: {', '.join(gm)}")
     print(f"  session {s.id} saved")
     return 0
 

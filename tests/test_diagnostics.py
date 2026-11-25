@@ -155,3 +155,15 @@ def test_services_analyze_end_to_end(tmp_path):
     assert "Recommendations" in report.to_text(rep)
     assert cli.main(["analyze", str(d / "game.exe"), "--no-system", "--json", str(tmp_path / "r.json")]) == 0
     assert json.loads((tmp_path / "r.json").read_text())["format"] == "legacyforge-report/1"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX module listing")
+def test_monitor_records_loaded_modules():
+    prof = monitor.LaunchProfile(args=["-c", "import ctypes, time; time.sleep(1)"])
+    res = monitor.run(sys.executable, prof, interval=0.3)
+    assert res.modules and all("name" in m and "path" in m for m in res.modules)
+
+
+def test_graphics_modules_filter():
+    mods = [{"name": "d3dgl.dll", "path": "x"}, {"name": "D3D11.dll", "path": "y"}, {"name": "kernel32.dll", "path": "z"}]
+    assert sessions.graphics_modules(mods) == ["D3D11.dll", "d3dgl.dll"]

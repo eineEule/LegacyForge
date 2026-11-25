@@ -206,7 +206,8 @@ def list_sessions(game: str | None = None, limit: int = 20) -> list[dict]:
              "outcome": s["outcome"], "reasons": s["reasons"], "exit": s["exit"].get("code_hex"),
              "faulting_modules": sorted({e.get("module") for e in s.get("events", []) if e.get("module")}),
              "peak_memory_mb": s.get("memory", {}).get("peak"), "config": s["config_fingerprint"],
-             "fixes": s["config"].get("fixes"), "scenario": s.get("scenario"), "notes": s.get("notes")}
+             "fixes": s["config"].get("fixes"), "scenario": s.get("scenario"), "notes": s.get("notes"),
+             "graphics_modules": sessions.graphics_modules(s.get("modules", []))}
             for s in ss]
 
 

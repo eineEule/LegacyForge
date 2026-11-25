@@ -63,6 +63,7 @@ class Session:
     memory: dict
     events: list[dict] = field(default_factory=list)
     wrapper_logs: list[dict] = field(default_factory=list)
+    modules: list[dict] = field(default_factory=list)
     scenario: str | None = None
     notes: str | None = None
     system: dict = field(default_factory=dict)
@@ -152,6 +153,14 @@ def sanitize(obj):
     return clean(obj)
 
 
+GRAPHICS_MODULE_HINTS = ("d3d", "dxgi", "ddraw", "opengl", "glide", "vulkan", "dxvk", "reshade", "dgvoodoo")
+
+
+def graphics_modules(mods: list[dict]) -> list[str]:
+    return sorted({m["name"] for m in mods if any(h in m["name"].lower() for h in GRAPHICS_MODULE_HINTS)},
+                  key=str.lower)
+
+
 def community_record(s: dict) -> dict:
     """Privacy-preserving result format for a future shared database:
     only what is needed to reproduce, nothing that identifies the player."""
@@ -165,6 +174,7 @@ def community_record(s: dict) -> dict:
         "compat_layers": s.get("config", {}).get("compat_layers"),
         "system": {k: s.get("system", {}).get(k) for k in ("windows_build", "gpu", "gpu_driver")},
         "peak_private_mb": s.get("memory", {}).get("peak", {}).get("private_mb"),
+        "graphics_modules": graphics_modules(s.get("modules", [])),
     })
 
 

@@ -17,12 +17,16 @@ supported_windows: ["10", "11"]
 
 known_issues:
   - id: renderer-d3dgl
-    summary: "d3dgl.dll (named like a GL-on-Direct3D layer) in the game folder imports Direct3D 11, and the exe imports no graphics API itself. Likely the renderer; not yet confirmed that the running game loads it."
-    evidence: "legacyforge analyze on steam-ee build 00.2009.09.1500UO, 2026-11-25. Confirm by listing the running process's modules."
-    status: unconfirmed
+    summary: "Renders with Direct3D 11 through d3dgl.dll (game folder), which the exe loads at runtime. Direct3D 7 (D3DIM700.DLL) is also loaded; purpose unknown."
+    evidence: "2026-11-25, steam-ee build 00.2009.09.1500UO at the main menu: running process loaded d3dgl.dll, D3DCOMPILER_47.dll (game folder), d3d11.dll, dxgi.dll, D3DIM700.DLL (System32). Seen with 32-bit PowerShell; 64-bit PowerShell hides a WOW64 process's 32-bit modules."
+    status: confirmed
+  - id: memory-at-menu
+    summary: "Uses about 0.7 GB (working set) at the main menu, against a 2 GiB address-space limit."
+    evidence: "2026-11-25: riseofnations.exe working set 692 MB at the main menu (Get-Process). Peak in a late-game match not yet measured."
+    status: observed
   - id: patriots-launcher
-    summary: "patriots.exe (2.3 MB, MFC + GDI+ + steam_api, default 'TODO' version strings) is a launcher/dialog, not the renderer."
-    evidence: "legacyforge analyze, 2026-11-25 (sha256 833fa691...eb8156)."
+    summary: "patriots.exe (2.3 MB, MFC + GDI+ + steam_api, default 'TODO' version strings) is the Play/Achievements/Workshop launcher; it starts riseofnations.exe and exits."
+    evidence: "legacyforge analyze (sha256 833fa691...eb8156) and observed 2026-11-25: patriots.exe at 58 MB showing the launcher, replaced by riseofnations.exe after Play."
     status: confirmed
   - id: nvidia-driver-2025
     summary: "DirectX errors halting the game on some 2025 Nvidia drivers."
@@ -42,7 +46,7 @@ fixes:
     optional: true
     status: experimental
     order: 2
-    note: "if d3dgl.dll/D3D11 is the renderer; A/B test with sessions before keeping"
+    note: "renderer is Direct3D 11 (d3dgl.dll); A/B test with sessions before keeping"
 
 test_plan:
   - id: skirmish-late

@@ -179,7 +179,7 @@ def launch(exe: Path, *, game: str | None = None, scenario: str | None = None, m
         ended=res.ended.isoformat(), runtime_s=round(runtime, 1), exit=asdict(ex), outcome=outcome,
         reasons=reasons, config=cfg, config_fingerprint=sessions.fingerprint(cfg),
         memory={"peak": res.peak, "samples": [asdict(x) for x in res.samples]}, events=events,
-        wrapper_logs=logs, scenario=scenario, notes=notes,
+        wrapper_logs=logs, modules=res.modules, scenario=scenario, notes=notes,
         system={"windows_build": sysinfo.os.get("windows_build"), "platform": sysinfo.os.get("platform"),
                 "gpu": gpus[0].get("Name") if gpus else None,
                 "gpu_driver": gpus[0].get("DriverVersion") if gpus else None})
