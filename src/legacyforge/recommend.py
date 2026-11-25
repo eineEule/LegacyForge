@@ -258,8 +258,7 @@ def launcher_notice(c: Context) -> list[Recommendation]:
     return [Recommendation(
         id="info.launcher", category=INFO,
         problem="This looks like a launcher, not the game itself",
-        evidence=["small executable that starts other programs (CreateProcess/ShellExecute)",
-                  "no graphics API of its own"],
+        evidence=list(c.exe.launcher_reasons) or ["no graphics API of its own"],
         fix=None, fix_type=None, benefit="Fixes belong on the executable it starts; analyze that one",
         prerequisites=[], side_effects=[], risk="low", needs_admin=False, modifies_executable=False,
         rollback=False, verification="Launch it and check which .exe appears in Task Manager",
@@ -305,7 +304,7 @@ def recipe_fixes(c: Context) -> list[Recommendation]:
             prerequisites=[], side_effects=[], risk="medium" if t in ("laa", "dxvk", "reshade") else "low",
             needs_admin=False, modifies_executable=t == "laa", rollback=True,
             verification="legacyforge launch, then compare with a baseline session",
-            confidence="medium" if c.recipe_hash_match else "low"))
+            confidence="medium" if c.recipe_hash_match and status in ("known", "verified") else "low"))
     return out
 
 

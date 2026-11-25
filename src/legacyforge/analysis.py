@@ -113,6 +113,7 @@ class ExeAnalysis:
     overlay_bytes: int
     folder: dict
     looks_like_launcher: bool = False
+    launcher_reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -228,7 +229,8 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
             continue
         apis_here = sorted({d.name for d in sub if d.name in API_BY_DLL})
         loaded = name in imported
-        named = not loaded and bool(_string_hits(data, [name]))
+        stem = name[:-4]
+        named = not loaded and bool(_string_hits(data, [name] + ([stem] if len(stem) >= 5 else [])))
         game_dlls.append({"dll": path.name, "imported_by_exe": loaded, "named_in_exe": named,
                           "graphics_imports": apis_here})
         for g in apis_here:
@@ -282,8 +284,11 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
     own_3d = any(x.source in ("import", "delay-import") or (x.source == "game-dll" and x.strength == STRONG)
                  for g in graphics if g.api != "software" for x in g.evidence)
     mfc_dialog = any(d.name.startswith(("mfc", "gdiplus")) for d in imports)
-    looks_like_launcher = (len(data) < (8 << 20) and not own_3d
-                           and (bool(funcs & LAUNCH_FUNCS) or mfc_dialog))
+    starts = bool(funcs & LAUNCH_FUNCS)
+    looks_like_launcher = len(data) < (8 << 20) and not own_3d and (starts or mfc_dialog)
+    launcher_reasons = ([f"{len(data) / 2**20:.1f} MB executable with no 3D graphics API of its own"] +
+                        (["imports a process-start function (CreateProcess/ShellExecute/WinExec)"] if starts else []) +
+                        (["MFC / GDI+ dialog application"] if mfc_dialog else [])) if looks_like_launcher else []
 
     laa = p.info.large_address_aware if p.is_32bit else None
     return ExeAnalysis(
@@ -296,7 +301,7 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
         imports=[{"dll": d.name, "delay": d.delay, "functions": len(d.functions)} for d in imports],
         graphics=graphics, version_info=version, manifest=pe.manifest_facts(manifest_text),
         signature=sig, protection=protection, overlay_bytes=p.overlay_size, folder=folder,
-        looks_like_launcher=looks_like_launcher,
+        looks_like_launcher=looks_like_launcher, launcher_reasons=launcher_reasons,
     )
 
 

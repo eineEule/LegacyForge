@@ -199,4 +199,6 @@ def test_mfc_dialog_launcher(tmp_path):
     (d / "patriots.exe").write_bytes(build_pe(imports={"steam_api.dll": ["SteamAPI_Init"], "mfc140.dll": ["#1"],
                                                        "gdiplus.dll": ["GdiplusStartup"], "gdi32.dll": ["BitBlt"]}))
     (d / "d3dgl.dll").write_bytes(build_pe(characteristics=0x2102, imports={"d3d11.dll": ["D3D11CreateDevice"]}))
-    assert analysis.analyze(d / "patriots.exe", check_signature=False).looks_like_launcher
+    a = analysis.analyze(d / "patriots.exe", check_signature=False)
+    assert a.looks_like_launcher and "MFC / GDI+ dialog application" in a.launcher_reasons
+    assert not any("CreateProcess" in r for r in a.launcher_reasons)

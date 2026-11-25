@@ -17,9 +17,9 @@ supported_windows: ["10", "11"]
 
 known_issues:
   - id: renderer-d3dgl
-    summary: "Renders through d3dgl.dll (named for a GL-on-Direct3D layer), which imports Direct3D 11; riseofnations.exe loads it at runtime rather than importing it."
-    evidence: "legacyforge analyze on steam-ee build 00.2009.09.1500UO, 2026-11-25: d3dgl.dll imports d3d11.dll; the exe imports no graphics API directly."
-    status: confirmed
+    summary: "d3dgl.dll (named like a GL-on-Direct3D layer) in the game folder imports Direct3D 11, and the exe imports no graphics API itself. Likely the renderer; not yet confirmed that the running game loads it."
+    evidence: "legacyforge analyze on steam-ee build 00.2009.09.1500UO, 2026-11-25. Confirm by listing the running process's modules."
+    status: unconfirmed
   - id: patriots-launcher
     summary: "patriots.exe (2.3 MB, MFC + GDI+ + steam_api, default 'TODO' version strings) is a launcher/dialog, not the renderer."
     evidence: "legacyforge analyze, 2026-11-25 (sha256 833fa691...eb8156)."
@@ -42,7 +42,7 @@ fixes:
     optional: true
     status: experimental
     order: 2
-    note: "renderer is d3dgl.dll on Direct3D 11; A/B test with sessions before keeping"
+    note: "if d3dgl.dll/D3D11 is the renderer; A/B test with sessions before keeping"
 
 test_plan:
   - id: skirmish-late

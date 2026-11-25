@@ -111,3 +111,11 @@ def test_laa_category_follows_recipe_status(tmp_path):
     r = recs(a, recipe=sug, recipe_hash_match=True)["memory.laa"]
     assert r.category == recommend.SUGGESTED and r.confidence == "low"
     assert any("recipe status: suggested" in e for e in r.evidence)
+
+
+def test_experimental_recipe_fix_is_low_confidence(tmp_path):
+    a = analyze(tmp_path)
+    r = parse({"game": "g", "name": "G", "detect": {"exe": "g.exe"},
+               "fixes": [{"dxvk": {"api": "d3d11"}, "status": "experimental"}]})
+    dx = [x for x in recs(a, recipe=r, recipe_hash_match=True).values() if x.fix_type == "dxvk"]
+    assert dx[0].confidence == "low"
