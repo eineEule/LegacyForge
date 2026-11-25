@@ -228,10 +228,15 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
             continue
         apis_here = sorted({d.name for d in sub if d.name in API_BY_DLL})
         loaded = name in imported
-        game_dlls.append({"dll": path.name, "imported_by_exe": loaded, "graphics_imports": apis_here})
+        named = not loaded and bool(_string_hits(data, [name]))
+        game_dlls.append({"dll": path.name, "imported_by_exe": loaded, "named_in_exe": named,
+                          "graphics_imports": apis_here})
         for g in apis_here:
             if loaded:
                 note(g, Evidence("game-dll", f"{path.name} (imported by the exe) imports {g}", STRONG))
+            elif named:
+                note(g, Evidence("game-dll", f"{path.name} imports {g}; the exe names {path.name} "
+                                             f"(loaded at runtime)", STRONG))
             else:
                 note(g, Evidence("game-dll", f"{path.name} in the game folder imports {g} "
                                              f"(the exe may load it at runtime)", MEDIUM))
@@ -274,8 +279,11 @@ def analyze(exe: Path, *, check_signature: bool = True, os_64bit: bool | None = 
             sig["note"] = f"validity not checked: {e}"
 
     funcs = {f.lower() for d in imports for f in d.functions}
-    looks_like_launcher = (len(data) < (2 << 20) and bool(funcs & LAUNCH_FUNCS)
-                           and not any(g.strength != WEAK for g in graphics if g.api != "software"))
+    own_3d = any(x.source in ("import", "delay-import") or (x.source == "game-dll" and x.strength == STRONG)
+                 for g in graphics if g.api != "software" for x in g.evidence)
+    mfc_dialog = any(d.name.startswith(("mfc", "gdiplus")) for d in imports)
+    looks_like_launcher = (len(data) < (8 << 20) and not own_3d
+                           and (bool(funcs & LAUNCH_FUNCS) or mfc_dialog))
 
     laa = p.info.large_address_aware if p.is_32bit else None
     return ExeAnalysis(

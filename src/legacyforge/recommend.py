@@ -85,14 +85,23 @@ def memory_laa(c: Context) -> list[Recommendation]:
                        "); patching may break DRM/anti-cheat checks")
     if e.is_dotnet:
         blocked.append(".NET executable: memory behaviour is controlled by the runtime")
-    recipe_says = c.recipe is not None and any(
-        f.fix.type == "laa" for f in getattr(c.recipe, "fixes", []))
+    entry = next((f for f in getattr(c.recipe, "fixes", []) if f.fix.type == "laa"), None) \
+        if c.recipe is not None else None
+    recipe_says = entry is not None
     if c.observed.get("memory_crash"):
         evidence.append("a recorded session ended in an out-of-memory style crash")
     if recipe_says:
         evidence.append(f"the {c.recipe.name} recipe lists this fix")
-    category = KNOWN_GAME if recipe_says and c.recipe_hash_match else \
-        SUGGESTED if (recipe_says or c.observed.get("memory_crash")) else EXPERIMENTAL
+    if recipe_says:
+        status = getattr(entry, "status", "known")
+        category = {"verified": VERIFIED, "known": KNOWN_GAME, "suggested": SUGGESTED,
+                    "experimental": EXPERIMENTAL}.get(status, SUGGESTED)
+        if category in (VERIFIED, KNOWN_GAME) and not c.recipe_hash_match:
+            category = SUGGESTED  # the recipe vouches for a version this exe isn't confirmed to be
+        evidence.append(f"recipe status: {status}" + ("" if c.recipe_hash_match else
+                                                     "; executable version not confirmed by hash"))
+    else:
+        category = SUGGESTED if c.observed.get("memory_crash") else EXPERIMENTAL
     return [Recommendation(
         id="memory.laa", category=category, merge_key="laa",
         problem="Game may run out of address space in long or large sessions",
@@ -105,7 +114,7 @@ def memory_laa(c: Context) -> list[Recommendation]:
         risk="medium", needs_admin=False, modifies_executable=True, rollback=True,
         verification="Play a long session; compare peak private bytes and crash outcome with a "
                      "baseline session (legacyforge launch --compare)",
-        confidence="medium" if category == KNOWN_GAME else "low", blocked_by=blocked)]
+        confidence="medium" if category in (KNOWN_GAME, VERIFIED) else "low", blocked_by=blocked)]
 
 
 @rule

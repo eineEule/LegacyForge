@@ -16,6 +16,14 @@ editions:
 supported_windows: ["10", "11"]
 
 known_issues:
+  - id: renderer-d3dgl
+    summary: "Renders through d3dgl.dll (named for a GL-on-Direct3D layer), which imports Direct3D 11; riseofnations.exe loads it at runtime rather than importing it."
+    evidence: "legacyforge analyze on steam-ee build 00.2009.09.1500UO, 2026-11-25: d3dgl.dll imports d3d11.dll; the exe imports no graphics API directly."
+    status: confirmed
+  - id: patriots-launcher
+    summary: "patriots.exe (2.3 MB, MFC + GDI+ + steam_api, default 'TODO' version strings) is a launcher/dialog, not the renderer."
+    evidence: "legacyforge analyze, 2026-11-25 (sha256 833fa691...eb8156)."
+    status: confirmed
   - id: nvidia-driver-2025
     summary: "DirectX errors halting the game on some 2025 Nvidia drivers."
     evidence: "r/riseofnations help thread (March 2025): rolling back from 572.83 to 566.36 fixed it for one user. Not reproduced."
@@ -30,8 +38,11 @@ fixes:
     status: suggested
     order: 1
     note: "community-recommended for crashes; needs --approve laa until a tested hash is recorded"
-  # Graphics API not yet confirmed: run `legacyforge analyze` on riseofnations.exe, then
-  # enable DXVK or ReShade for the API it reports (they can't share a DLL).
+  - dxvk: {api: d3d11}
+    optional: true
+    status: experimental
+    order: 2
+    note: "renderer is d3dgl.dll on Direct3D 11; A/B test with sessions before keeping"
 
 test_plan:
   - id: skirmish-late

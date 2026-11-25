@@ -180,3 +180,23 @@ def test_launcher_detection(tmp_path):
     assert a.looks_like_launcher
     ids = [r.id for r in recommend.recommend(recommend.Context(exe=a))]
     assert "info.launcher" in ids and "memory.laa" not in ids
+
+
+def test_runtime_loaded_dll_named_in_exe_is_strong(tmp_path):
+    d = tmp_path / "R"
+    d.mkdir()
+    (d / "game.exe").write_bytes(build_pe(imports={"kernel32.dll": ["LoadLibraryA"]},
+                                          text_bytes=b"\xc3" * 16 + b"d3dgl.dll\0"))
+    (d / "d3dgl.dll").write_bytes(build_pe(characteristics=0x2102, imports={"d3d11.dll": ["D3D11CreateDevice"]}))
+    a = analysis.analyze(d / "game.exe", check_signature=False)
+    assert {g.api: g.strength for g in a.graphics}["d3d11"] == "strong"
+    assert not a.looks_like_launcher
+
+
+def test_mfc_dialog_launcher(tmp_path):
+    d = tmp_path / "P"
+    d.mkdir()
+    (d / "patriots.exe").write_bytes(build_pe(imports={"steam_api.dll": ["SteamAPI_Init"], "mfc140.dll": ["#1"],
+                                                       "gdiplus.dll": ["GdiplusStartup"], "gdi32.dll": ["BitBlt"]}))
+    (d / "d3dgl.dll").write_bytes(build_pe(characteristics=0x2102, imports={"d3d11.dll": ["D3D11CreateDevice"]}))
+    assert analysis.analyze(d / "patriots.exe", check_signature=False).looks_like_launcher

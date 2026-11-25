@@ -103,3 +103,11 @@ def test_d3d11_exe_gets_d3d11_dxvk_and_merges_with_recipe(tmp_path):
     dx = [x for x in recommend.recommend(recommend.Context(exe=a, recipe=r)) if x.fix_type == "dxvk"]
     assert len(dx) == 1 and "D3D11" in dx[0].fix
     assert any("recipe" in e for e in dx[0].evidence)
+
+
+def test_laa_category_follows_recipe_status(tmp_path):
+    a = analyze(tmp_path)
+    sug = parse({"game": "g", "name": "G", "detect": {"exe": "g.exe"}, "fixes": [{"laa": {}, "status": "suggested"}]})
+    r = recs(a, recipe=sug, recipe_hash_match=True)["memory.laa"]
+    assert r.category == recommend.SUGGESTED and r.confidence == "low"
+    assert any("recipe status: suggested" in e for e in r.evidence)
